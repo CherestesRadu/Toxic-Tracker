@@ -1,6 +1,15 @@
 import requests as req
 import time
 import sys
+from datetime import datetime
+
+from typing import Tuple
+
+def get_tagline(region: str):
+    if region == 'europe':
+        return 'EUNE'
+    if region == 'TODO':
+        return 'TODOMEPLEASE'
 
 class RiotApi:
     def __init__(self, key: str, region: str):
@@ -18,7 +27,6 @@ class RiotApi:
             result = req.get(api_request)
             time_to_sleep += 5.0
         
-
         # TODO: Better error handling
         if result.status_code == 200: # OK
             return result
@@ -27,6 +35,7 @@ class RiotApi:
 
     def set_region(self, region: str):
         self.selected_region = region
+        self.root_request = 'https://' + region + '.api.riotgames.com'
 
     def get_player_from_uuid(player_uuid: str):
         pass
@@ -51,4 +60,69 @@ class RiotApi:
         api_request = self.root_request + '/lol/match/v5/matches/' + match_id + '?api_key=' + self.api_key
         result = self.execute_request(api_request).json()
         return result
+
+    # Function returns a list of players or None and error code
+    def get_players_stats_from_match(self, match_stats) -> Tuple[list, str]:
+        # Kills, Deaths, Assists, Role!!!, PUUIDS, GameName/TagLine, Pings Number, Champion, Won/Lost
+        # Discriminate between ranked/summoner's rift vs ranked/arena(2v2)&flex, wards placed/taken down
+
+        general_info = match_stats['info']                      
+        date = datetime.fromtimestamp(general_info['gameCreation'] / 1000).strftime('%Y-%m-%d')
+        match_id = match_stats['metadata']['matchId']
+        is_ranked = general_info['gameMode'] == 'CLASSIC'
+        is_ranked = general_info['gameType'] == 'MATCHED_GAME'
+
+        if not is_ranked:
+            return players, 'Game is not ranked!'
+        
+        players = general_info['participants']
+
+        player_list = []
+        for p in players:
+            ping_count = p['allInPings'] + p['assistMePings'] + \
+            p['basicPings'] + p['commandPings'] + p['dangerPings'] + \
+            p['enemyMissingPings'] + p['enemyVisionPings'] + \
+            p['getBackPings'] + p['holdPings'] + p['needVisionPings'] + \
+            p['onMyWayPings'] + p['pushPings'] + p['visionClearedPings']
+
+            riot_name = None
+            tag_line = None
+            if p['riotIdGameName'] == '' and p['riotIdTagline'] == '':
+                riot_name = p['summonerName']
+                tag_line = get_tagline(self.selected_region)
+            else:
+                riot_name = p['riotIdGameName']
+                tag_line = p['riotIdTagline']
+
+            # TODO: Must run a thorough scan on players, some have undefined roles
+            role = None
+            role = p['teamPosition']
+            if role == "UTILITY":
+                role = "SUPPORT"
+
+            player = {
+                'champion': {
+                    'name': p['championName'], 
+                    'id': p['championId']
+                },
+                'kills': p['kills'],
+                'deaths': p['deaths'],
+                'assists': p['assists'],
+                'pingCount': ping_count,
+                'missingPings': p['enemyMissingPings'],
+                'win': p['win'] ,
+                'puuid': p['puuid'],
+                'name': riot_name,
+                'tag': tag_line,
+                'role': role,
+                'matchId': match_id,
+                'damage': p['totalDamageDealt'],
+                'date': date,
+                'cs': p['totalMinionsKilled']
+            }
+
+            player_list.append(player)
+    
+        return player_list
+
 
