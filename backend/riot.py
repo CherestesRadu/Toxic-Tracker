@@ -30,7 +30,8 @@ class RiotApi:
         # TODO: Use library for request wait times
         result = req.get(api_request)
         time_to_sleep = 5.0
-        while result.status_code == 429: # Rate limit exceeded
+        while result.status_code == 429 or result.status_code == 503: # Rate limit exceeded or service unavailable ???????
+            print(f"\n\n\nNeed to sleep. error_code: {result.status_code}")
             time.sleep(time_to_sleep)
             result = req.get(api_request)
             time_to_sleep += 5.0
@@ -52,15 +53,23 @@ class RiotApi:
     def get_player_from_summoner_name(summoner_name: str):
         pass
 
-    def get_account_from_riot_id(self, riot_id_name: str, tag: str):
+    def get_account_from_riot_id(self, riot_name: str, riot_tag: str):
         #'https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/CJLOR2/EUNE?api_key=RGAPI-cbf5d9bf-930d-4489-9181-8b0fe6ac8642'
-        api_request = self.root_request + '/riot/account/v1/accounts/by-riot-id/' + riot_id_name + '/' + tag + '?api_key=' + self.api_key
+        api_request = self.root_request + '/riot/account/v1/accounts/by-riot-id/' + riot_name + '/' + riot_tag + '?api_key=' + self.api_key
         result = self.execute_request(api_request).json()
         return result
     
-    def get_matches_from_puuid(self, puuid: str): # TODO: Default is 20 games, control num with param
-        #"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/ubD8VSQx-85GcWmO8UbSqz2kaex8zw2FSaSaOGRgQ_FJ_YdGqlZohc7bLGbUKGMJlDSAFPNBFu-PWQ/ids?type=ranked&start=0&count=20&api_key=RGAPI-cbf5d9bf-930d-4489-9181-8b0fe6ac8642"
-        api_request = self.root_request + '/lol/match/v5/matches/by-puuid/' + puuid + '/ids?type=ranked&start=0&count=20&api_key=' + self.api_key
+    def get_matches_from_puuid(self, puuid: str, start_date: int, end_date: int): # TODO: Default is 20 games, control num with param
+        #"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/ubD8VSQx-85GcWmO8UbSqz2kaex8zw2FSaSaOGRgQ_FJ_YdGqlZohc7bLGbUKGMJlDSAFPNBFu-PWQ/ids?type=ranked&startTime=&start=0&count=20&api_key=RGAPI-cbf5d9bf-930d-4489-9181-8b0fe6ac8642"
+        
+        if start_date == 0 and end_date == 0: # Get last 20 games
+            api_request = self.root_request + '/lol/match/v5/matches/by-puuid/' + puuid + '/ids?type=ranked&start=0&count=20&api_key=' + self.api_key
+            result = self.execute_request(api_request).json()
+            return result
+        
+        # Or get games from timestamps
+        api_request = self.root_request + '/lol/match/v5/matches/by-puuid/' + puuid + '/ids?type=ranked' + \
+        '&startTime=' + str(start_date) + '&endTime=' + str(end_date) + '&start=0&count=20&api_key=' + self.api_key
         result = self.execute_request(api_request).json()
         return result
     
@@ -92,7 +101,7 @@ class RiotApi:
         # Discriminate between ranked/summoner's rift vs ranked/arena(2v2)&flex, wards placed/taken down
 
         general_info = match_stats['info']                      
-        date = datetime.fromtimestamp(general_info['gameCreation'] / 1000).strftime('%Y-%m-%d')
+        date = datetime.fromtimestamp(general_info['gameCreation'] / 1000).strftime('%Y-%m-%d %H:%M:%S')
         match_id = match_stats['metadata']['matchId']
         is_ranked = general_info['gameMode'] == 'CLASSIC'
         is_ranked = general_info['gameType'] == 'MATCHED_GAME'
