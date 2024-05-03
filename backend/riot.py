@@ -5,11 +5,19 @@ from datetime import datetime
 
 from typing import Tuple
 
+region_tagline_dict = {
+    'EUNE' : 'europe'
+}
+
+tagline_region_dict = {
+    'europe' : 'EUNE'
+}
+
 def get_tagline(region: str):
-    if region == 'europe':
-        return 'EUNE'
-    if region == 'TODO':
-        return 'TODOMEPLEASE'
+    return tagline_region_dict[region]
+    
+def get_region_from_tagline(tagline: str):
+    return region_tagline_dict[tagline]
 
 class RiotApi:
     def __init__(self, key: str, region: str):
@@ -31,6 +39,7 @@ class RiotApi:
         if result.status_code == 200: # OK
             return result
         else:
+            print(result)
             raise Exception('Handle error')
 
     def set_region(self, region: str):
@@ -60,6 +69,22 @@ class RiotApi:
         api_request = self.root_request + '/lol/match/v5/matches/' + match_id + '?api_key=' + self.api_key
         result = self.execute_request(api_request).json()
         return result
+
+    def get_summoner_from_puuid(self, puuid: str):
+        #https://eun1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/tv14BHPWywhlS7Lff-YJ-OKqvTC4l73FS9r-Uc84EndudYrZHS_nmxGdZhBdow034q_szPIla4k-iA?api_key=RGAPI-c512a757-1456-41ea-afd9-5df1e41a6eff
+        if self.selected_region == 'europe':
+            api_request = 'https://eun1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/' + puuid + '?api_key=' + self.api_key
+            result = self.execute_request(api_request).json()
+            return result
+        pass
+
+    def get_player_rank_from_id(self, player_id: str):
+        #https://eun1.api.riotgames.com/lol/league/v4/entries/by-summoner/DJVAbPvNZ2DYBaUPwvLHn1RqaVZlUp8Yxn_BJ1fnuYK1IQM?api_key=RGAPI-c512a757-1456-41ea-afd9-5df1e41a6eff
+        
+        if self.selected_region == 'europe':
+            api_request = 'https://eun1.api.riotgames.com/lol/league/v4/entries/by-summoner/' + player_id + '?api_key=' + self.api_key
+            result = self.execute_request(api_request).json()
+            return result
 
     # Function returns a list of players or None and error code
     def get_players_stats_from_match(self, match_stats) -> Tuple[list, str]:
@@ -103,7 +128,7 @@ class RiotApi:
             player = {
                 'champion': {
                     'name': p['championName'], 
-                    'id': p['championId']
+                    'id': str(p['championId'])
                 },
                 'kills': p['kills'],
                 'deaths': p['deaths'],
@@ -116,7 +141,7 @@ class RiotApi:
                 'tag': tag_line,
                 'role': role,
                 'matchId': match_id,
-                'damage': p['totalDamageDealt'],
+                'damage': p['totalDamageDealtToChampions'],
                 'date': date,
                 'cs': p['totalMinionsKilled']
             }
