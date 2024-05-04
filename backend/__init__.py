@@ -1,15 +1,16 @@
 import os
 from flask import Flask
 from .riot import RiotApi
-from config import RIOT_API_KEY
-
+from .config import (RIOT_API_KEY, DB_KEY)
+from .db import *
+import sqlite3
 
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
-        SECRET_KEY='dev',
-        DATABASE=os.path.join(app.instance_path, 'flaskr.sqlite'),
+        SECRET_KEY= DB_KEY,
+        DATABASE=os.path.join(app.instance_path, 'backend.sqlite'),
     )
 
     if test_config is None:
@@ -27,12 +28,10 @@ def create_app(test_config=None):
 
     riot_api = RiotApi(RIOT_API_KEY, 'europe')
 
-    @app.route('/')
-    def testing():
-        matches = riot_api.get_matches_from_puuid('ubD8VSQx-85GcWmO8UbSqz2kaex8zw2FSaSaOGRgQ_FJ_YdGqlZohc7bLGbUKGMJlDSAFPNBFu-PWQ')
-        match_stats = []
-        for match in matches:
-            match_stats.append(riot_api.get_match_stats(match))
-            
-        return match_stats
+    from . import db
+    db.init_app(app)
+
+    from . import player
+    app.register_blueprint(player.blueprint)
+
     return app
