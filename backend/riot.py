@@ -121,12 +121,24 @@ class RiotApi:
 
             riot_name = None
             tag_line = None
-            if p['riotIdGameName'] == '' and p['riotIdTagline'] == '':
-                riot_name = p['summonerName']
-                tag_line = get_tagline(self.selected_region)
+
+            
+            """
+            First need to check if riotIdGameName is a key because
+            some player have riotIdName
+            """
+
+            if 'riotIdGameName' in p:
+                if p['riotIdGameName'] == '' and p['riotIdTagline'] == '':
+                    riot_name = p['summonerName']
+                    tag_line = get_tagline(self.selected_region)
+                else:
+                    riot_name = p['riotIdGameName']
+                    tag_line = p['riotIdTagline']
             else:
-                riot_name = p['riotIdGameName']
-                tag_line = p['riotIdTagline']
+                if p['riotIdName'] == '' and p['riotIdTagline'] == '':
+                    riot_name = p['summonerName']
+                    tag_line = get_tagline(self.selected_region)
 
             # TODO: Must run a thorough scan on players, some have undefined roles
             role = None
